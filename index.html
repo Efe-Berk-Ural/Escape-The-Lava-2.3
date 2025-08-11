@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Escape the Lava - v2.3</title>
+<style>
+  :root{--bg:#0b0f1a;--panel:#1b1f27;--accent:#ff4d2d;--muted:#8b8f96}
+
+  html, body{
+    height: 100dvh;
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: Inter, Arial, sans-serif;
+    color:#fff;
+  }
+  body{
+    display:flex;align-items:center;justify-content:center;flex-direction:column;user-select:none;
+    padding:6px 0 10px;
+    touch-action:none;
+  }
+  canvas{
+    width: min(96vw, 360px);
+    aspect-ratio: 3 / 5;
+    height: auto;
+    background:linear-gradient(180deg,#001022 0%, #330000 100%);
+    border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.6);
+    touch-action:none;
+  }
+  #ui-row{width:min(96vw,360px);display:flex;justify-content:space-between;margin-top:10px}
+  .control{width:64px;height:64px;border-radius:10px;border:none;background:#222;color:#fff;font-size:28px}
+  .control:active{background:var(--accent)}
+  #menu, #shop, #gameOverPanel, #pausePanel, #modulesPanel, #tutorial, #statsPanel{
+    position:absolute;top:40px;left:50%;transform:translateX(-50%);
+    background:var(--panel);padding:18px;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,.6);
+    display:none;z-index:20;max-width:360px
+  }
+  #menu h2,#shop h3,#modulesPanel h3,#statsPanel h3{margin:0 0 10px 0}
+  #menu .row, #shop .row, #modulesPanel .row{display:flex;gap:8px;align-items:center}
+  button.menuBtn{background:var(--accent);border:none;padding:8px 14px;border-radius:8px;font-size:16px;cursor:pointer}
+  .smallBtn{background:#333;border:none;padding:6px 10px;border-radius:8px;color:#fff;cursor:pointer}
+  .toggle{display:flex;align-items:center;gap:8px}
+  .toggle input{transform:scale(1.2)}
+  #shop-list{max-height:220px;overflow:auto;margin-top:10px;padding:6px;border-radius:8px;background:#0f1114;border:1px solid rgba(255,77,45,.12)}
+  .skin-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:6px;border:1px solid #2b2f35;margin-bottom:6px}
+  .skin-item.owned{border-color:#15b15d}
+  .skin-item.selected{background:rgba(255,77,45,.12)}
+  #footer{position:fixed;bottom:6px;width:100%;text-align:center;color:var(--muted);font-size:13px}
+  #hud{position:absolute;left:12px;top:12px;color:#fff;font-size:15px}
+  #hud .row{margin-bottom:6px}
+  #powerups{position:absolute;right:12px;top:12px;text-align:right}
+  .power-pill{background:#222;padding:6px 8px;border-radius:8px;margin-bottom:6px;font-size:13px}
+  #stageToast{position:absolute;left:50%;transform:translateX(-50%);top:120px;background:rgba(0,0,0,.5);padding:8px 14px;border-radius:8px;display:none}
+  #pausePanel .line{margin:6px 0;border-top:1px solid rgba(255,255,255,.08)}
+  #tasksBox{max-height:180px;overflow:auto;background:#0f1114;border:1px solid #2b2f35;border-radius:8px;padding:8px;margin-top:8px}
+  #upgradesBox .item{display:flex;justify-content:space-between;align-items:center;background:#0f1114;border:1px solid #2b2f35;border-radius:8px;padding:8px;margin-top:6px}
+  #leaderboard{max-height:180px;overflow:auto;background:#0f1114;border:1px solid #2b2f35;border-radius:8px;padding:8px;margin-top:8px}
+  #difficultyWrap .pill{padding:6px 10px;border-radius:8px;border:1px solid #2b2f35;background:#111;cursor:pointer}
+  #difficultyWrap .pill.active{background:rgba(255,77,45,.15);border-color:var(--accent)}
+  #statsList div{margin:4px 0}
+  #tutorial{max-width:360px}
+  @media(max-width:420px){#ui-row{width:min(96vw,360px)}}
+</style>
+</head>
+<body>
+<canvas id="game" width="360" height="600"></canvas>
+
+<!-- MAIN MENU -->
+<div id="menu">
+  <h2>Escape the Lava — v2.3</h2>
+  <div class="row">
+    <button class="menuBtn" id="startBtn">Start Game</button>
+    <button class="smallBtn" id="shopBtn">Shop</button>
+  </div>
+
+  <!-- Difficulty selection -->
+  <div style="margin-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><strong>Difficulty:</strong></div>
+      <div id="difficultyLabel" style="opacity:.9">Normal</div>
+    </div>
+    <div id="difficultyWrap" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="pill" data-diff="easy" title="Only Lava — sabit platformlar, başka tehlike yok.">Easy</button>
+      <button class="pill" data-diff="normal">Normal</button>
+      <button class="pill" data-diff="hard" title="Daha hızlı lava + daha fazla tehlike.">Hard</button>
+    </div>
+    <div style="margin-top:6px;color:var(--muted);font-size:12px">
+      Easy: Sadece yükselen lava + sabit platformlar + ⭐. Diğer her şey kapalı.
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:8px">
+    <button class="smallBtn" id="modulesBtn">Modules</button>
+    <button class="smallBtn" id="statsBtn">Statistics</button>
+    <button class="smallBtn" id="resetDataBtn">Reset Data</button>
+  </div>
+
+  <hr style="border:none;border-top:1px solid rgba(255,255,255,.06);margin:10px 0">
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div><strong>Lava Type:</strong></div>
+      <div id="lavaPreview" style="font-size:18px;opacity:.9">Red (Normal)</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="smallBtn" data-lava="red">Red</button>
+      <button class="smallBtn" data-lava="blue">Blue</button>
+      <button class="smallBtn" data-lava="purple">Purple</button>
+    </div>
+  </div>
+
+  <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:13px;color:var(--muted)">Saved Stars</div>
+      <div id="savedStars" style="font-size:18px">0 ⭐</div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--muted)">Selected Skin</div>
+      <div id="menuSkinPreview" style="font-size:22px">🧗‍♂️</div>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:var(--muted);font-size:13px">
+    Tip: P/Esc = Pause • Shift = Dash • Slide on walls and wall-jump to climb.
+  </div>
+</div>
+
+<!-- SHOP -->
+<div id="shop">
+  <h3>Shop</h3>
+  <div id="starsCount">Stars: 0</div>
+  <div id="shop-list"></div>
+  <div id="upgradesBox" style="margin-top:10px">
+    <div style="font-weight:600;margin-bottom:6px">Permanent Upgrades</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="smallBtn" id="backBtn">Back</button>
+    <button class="smallBtn" id="dailyBtn">Daily Tasks</button>
+  </div>
+  <div id="tasksBox" style="display:none"></div>
+</div>
+
+<!-- MODULES -->
+<div id="modulesPanel">
+  <h3>Modules</h3>
+  <div class="row toggle">
+    <input type="checkbox" id="modDailyRun">
+    <label for="modDailyRun">Daily Run (same seed)</label>
+  </div>
+  <div class="row toggle">
+    <input type="checkbox" id="modLeaderboard">
+    <label for="modLeaderboard">Local Leaderboard</label>
+  </div>
+  <div class="row toggle">
+    <input type="checkbox" id="modMiniBoss">
+    <label for="modMiniBoss">Mini-Boss (at Stage 3)</label>
+  </div>
+  <div id="leaderboard" style="display:none"></div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="smallBtn" id="modulesBackBtn">Back</button>
+  </div>
+</div>
+
+<!-- STATISTICS -->
+<div id="statsPanel">
+  <h3>Statistics</h3>
+  <div id="statsList"></div>
+  <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+    <button class="smallBtn" id="statsCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- PAUSE -->
+<div id="pausePanel">
+  <h3>Paused</h3>
+  <div class="line"></div>
+  <div class="row toggle">
+    <input type="checkbox" id="setSound">
+    <label for="setSound">Sound Effects</label>
+  </div>
+  <div class="row toggle">
+    <input type="checkbox" id="setShake">
+    <label for="setShake">Screen Shake</label>
+  </div>
+  <div class="row toggle">
+    <input type="checkbox" id="setHaptics">
+    <label for="setHaptics">Haptics (mobile)</label>
+  </div>
+  <div class="row toggle">
+    <label for="setControls">Controls:</label>
+    <select id="setControls">
+      <option value="righty">Left ◀  ▲  ▶ Right (default)</option>
+      <option value="lefty">Left ▲  Right ◀ ▶ (swapped)</option>
+    </select>
+  </div>
+  <div class="line"></div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="menuBtn" id="resumeBtn">Resume</button>
+    <button class="smallBtn" id="toMenuBtn">Main Menu</button>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOverPanel">
+  <h3 id="goTitle">Game Over</h3>
+  <div id="goStats"></div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button class="menuBtn" id="goMenuBtn">Main Menu</button>
+    <button class="smallBtn" id="goRestartBtn">Restart</button>
+  </div>
+</div>
+
+<!-- TOUCH UI -->
+<div id="ui-row">
+  <button class="control" id="leftBtn">◀</button>
+  <button class="control" id="upBtn">▲</button>
+  <button class="control" id="rightBtn">▶</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="row" id="timeTxt">Time: 0s</div>
+  <div class="row" id="starsTxt">Stars: 0</div>
+  <div class="row" id="livesTxt">Lives: ❤️❤️❤️</div>
+  <div class="row" id="dashTxt" style="color:#ffddaa">Dash: Ready</div>
+  <div class="row" id="diffTxt" style="color:#a0cfff"></div>
+</div>
+
+<div id="powerups"></div>
+<div id="stageToast"></div>
+<div id="tutorial">
+  <h3>How to Play</h3>
+  <div style="font-size:14px;line-height:1.45">
+    Keyboard: Left/Right arrows, Jump: ↑ or Space, <b>Dash: Shift</b>, Pause: P or Esc.<br>
+    Slide on walls and use wall-jumps to climb. Collect ⭐ and use powerups wisely.
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+    <button class="menuBtn" id="tutorialOkBtn">Got it</button>
+  </div>
+</div>
+
+<div id="footer">© Efe Berk Ural</div>
+
+<script>
+(() => {
+  // --- Prevent page scroll with arrows/space/pagedown etc. ---
+  window.addEventListener('keydown', (e) => {
+    const block = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space','PageUp','PageDown','Home','End'];
+    if (block.includes(e.key)) e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchmove', (e)=> e.preventDefault(), { passive:false });
+
+  // ===== Canvas + DPI =====
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = 360, H = 600;
+
+  function resize(){
+    const dpr = Math.max(1, window.devicePixelRatio||1);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    W = rect.width; H = rect.height;
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // ===== Elements =====
+  const menu = document.getElementById('menu');
+  const shop = document.getElementById('shop');
+  const startBtn = document.getElementById('startBtn');
+  const shopBtn = document.getElementById('shopBtn');
+  const backBtn = document.getElementById('backBtn');
+  const starsCountEl = document.getElementById('starsCount');
+  const shopList = document.getElementById('shop-list');
+  const savedStarsEl = document.getElementById('savedStars');
+  const menuSkinPreview = document.getElementById('menuSkinPreview');
+  const lavaPreview = document.getElementById('lavaPreview');
+  const resetDataBtn = document.getElementById('resetDataBtn');
+  const powerupsEl = document.getElementById('powerups');
+  const stageToast = document.getElementById('stageToast');
+  const goPanel = document.getElementById('gameOverPanel');
+  const goStats = document.getElementById('goStats');
+  const goMenuBtn = document.getElementById('goMenuBtn');
+  const goRestartBtn = document.getElementById('goRestartBtn');
+  const timeTxt = document.getElementById('timeTxt');
+  const starsTxt = document.getElementById('starsTxt');
+  const livesTxt = document.getElementById('livesTxt');
+  const dashTxt = document.getElementById('dashTxt');
+  const diffTxt = document.getElementById('diffTxt');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+  const upBtn = document.getElementById('upBtn');
+
+  // Pause/settings
+  const pausePanel = document.getElementById('pausePanel');
+  const resumeBtn = document.getElementById('resumeBtn');
+  const toMenuBtn = document.getElementById('toMenuBtn');
+  const setSound = document.getElementById('setSound');
+  const setShake = document.getElementById('setShake');
+  const setHaptics = document.getElementById('setHaptics');
+  const setControls = document.getElementById('setControls');
+
+  // Modules
+  const modulesBtn = document.getElementById('modulesBtn');
+  const modulesPanel = document.getElementById('modulesPanel');
+  const modulesBackBtn = document.getElementById('modulesBackBtn');
+  const modDailyRun = document.getElementById('modDailyRun');
+  const modLeaderboard = document.getElementById('modLeaderboard');
+  const modMiniBoss = document.getElementById('modMiniBoss');
+  const leaderboardEl = document.getElementById('leaderboard');
+
+  // Stats
+  const statsPanel = document.getElementById('statsPanel');
+  const statsBtn = document.getElementById('statsBtn');
+  const statsCloseBtn = document.getElementById('statsCloseBtn');
+  const statsList = document.getElementById('statsList');
+
+  // Tasks / Upgrades UI
+  const dailyBtn = document.getElementById('dailyBtn');
+  const tasksBox = document.getElementById('tasksBox');
+  const upgradesBox = document.getElementById('upgradesBox');
+
+  // Difficulty UI
+  const difficultyWrap = document.getElementById('difficultyWrap');
+  const difficultyLabel = document.getElementById('difficultyLabel');
+
+  // Tutorial
+  const tutorial = document.getElementById('tutorial');
+  const tutorialOkBtn = document.getElementById('tutorialOkBtn');
+
+  function uiVisible(v){ document.getElementById('ui-row').style.display = v ? 'flex' : 'none'; }
+
+  // ===== World / Player =====
+  let worldHeight = 12000;
+  const worldWidth = () => W;
+  let cameraY = 0;
+
+  const skins = [
+    {emoji:'🧗‍♂️',price:0,key:0},
+    {emoji:'🦸‍♂️',price:10,key:1},
+    {emoji:'🧙‍♂️',price:20,key:2},
+    {emoji:'👽',price:30,key:3},
+    {emoji:'🤖',price:40,key:4},
+    {emoji:'✨',price:100,key:5,unlockTask:'star_hunter'}
+  ];
+
+  // ===== Storage (migration) =====
+  const defaultSettings = {sound:1,shake:1,haptics:1,controls:'righty'};
+  const defaultModules = {dailyRun:0, leaderboard:0, miniBoss:0};
+  const defaultUpgrades = {extraHeart:0, jumpPlus:0, slowPlus:0, magnet:0};
+  const defaultAch = {};
+  function LSget(k, def){ try{ const v = localStorage.getItem(k); return v===null? def : JSON.parse(v); }catch(e){ return def; } }
+  function LSset(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+  // version bump
+  let version = parseInt(localStorage.getItem('etl_v')||'2',10);
+  let ownedSkins = LSget('etl_ownedSkins',[0]);
+  let savedStars = parseInt(localStorage.getItem('etl_stars')||'0',10);
+  let selectedSkin = parseInt(localStorage.getItem('etl_selectedSkin')||'0',10);
+  let achievements = LSget('etl_achievements', defaultAch);
+  let tasks = LSget('etl_tasks', {});
+  let settings = LSget('etl_settings', defaultSettings);
+  let upgrades = LSget('etl_upgrades', defaultUpgrades);
+  let modules = LSget('etl_modules', defaultModules);
+  let bestRuns = LSget('etl_bestRuns', []); // old storage (v2.2)
+  let bestRunsByDiff = LSget('etl_bestRunsByDiff', null);
+  let lavaType = localStorage.getItem('etl_lava') || 'red';
+  let difficulty = localStorage.getItem('etl_difficulty') || 'normal';
+  let stats = LSget('etl_stats', {totalRuns:0,totalTime:0,totalStars:0,bestStageOverall:1});
+
+  // migrate best runs to by-difficulty store
+  if(!bestRunsByDiff){
+    bestRunsByDiff = {easy:[],normal:[],hard:[]};
+    if(Array.isArray(bestRuns) && bestRuns.length){
+      bestRunsByDiff.normal = bestRuns.slice(0,10);
+    }
+    LSset('etl_bestRunsByDiff', bestRunsByDiff);
+    localStorage.removeItem('etl_bestRuns');
+  }
+
+  if(version<3){
+    settings = {...defaultSettings, ...settings};
+    upgrades = {...defaultUpgrades, ...upgrades};
+    modules = {...defaultModules, ...modules};
+    localStorage.setItem('etl_v','3'); // v2.3 internal schema
+    LSset('etl_settings', settings);
+    LSset('etl_upgrades', upgrades);
+    LSset('etl_modules', modules);
+  }
+
+  // ===== Game State =====
+  let platforms=[], stars=[], rocks=[], powerups=[], enemies=[];
+  let particles=[];
+  let movingPlatforms=[], vanishingPlatforms=[], elevatorPlatforms=[], springPlatforms=[], spikePlatforms=[];
+  let elapsed=0,lastTS=0,gameOver=false,running=false,paused=false;
+  let lavaY=0, baseLavaSpeed=25, lavaMultiplier=1;
+  let totalCollectedThisRun=0;
+  let stage=1, stageHeight=2000;
+  let activePowerups={doubleStars:0, slowLava:0, superJump:0, magnet:0};
+  let lastFrame=0;
+  let dash={cooldown:0, active:0, dir:0};
+  let noLavaTimer=0;
+
+  const player = {width:44,height:44,x:0,y:0,vy:0,gravity:0.9,jumpPower:-16,speed:5,onGround:false,skin:0,lives:3, iFrames:0};
+
+  // ===== Input =====
+  let keys={left:false,right:false,up:false};
+  window.addEventListener('keydown',e=>{
+    if(e.key==='ArrowLeft') keys.left=true;
+    if(e.key==='ArrowRight') keys.right=true;
+    if(e.key==='ArrowUp' || e.key===' ') keys.up=true;
+    if((e.key==='Escape'||e.key==='p'||e.key==='P')) togglePause();
+    if(e.key==='Shift') tryDash();
+  });
+  window.addEventListener('keyup',e=>{
+    if(e.key==='ArrowLeft') keys.left=false;
+    if(e.key==='ArrowRight') keys.right=false;
+    if(e.key==='ArrowUp' || e.key===' ') keys.up=false;
+  });
+  leftBtn.addEventListener('touchstart',e=>{e.preventDefault();keys.left=true}); leftBtn.addEventListener('touchend',e=>{e.preventDefault();keys.left=false});
+  rightBtn.addEventListener('touchstart',e=>{e.preventDefault();keys.right=true}); rightBtn.addEventListener('touchend',e=>{e.preventDefault();keys.right=false});
+  upBtn.addEventListener('touchstart',e=>{e.preventDefault();keys.up=true}); upBtn.addEventListener('touchend',e=>{e.preventDefault();keys.up=false});
+
+  // ===== SFX (WebAudio) =====
+  let audioCtx=null;
+  function ensureAudio(){ if(!audioCtx){ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); } }
+  function beep(freq=440,dur=0.08,type='sine',gain=0.05){
+    if(!settings.sound) return;
+    ensureAudio();
+    const osc=audioCtx.createOscillator(); const g=audioCtx.createGain();
+    osc.type=type; osc.frequency.value=freq;
+    g.gain.value=gain; osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime+dur);
+  }
+
+  // ===== Helpers =====
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function show(el, v){ el.style.display = v?'block':'none'; }
+  function toast(txt, ms=2000){ stageToast.textContent=txt; show(stageToast,true); setTimeout(()=>show(stageToast,false), ms); }
+  function saveData(){
+    localStorage.setItem('etl_stars', String(savedStars));
+    LSset('etl_ownedSkins', ownedSkins);
+    localStorage.setItem('etl_selectedSkin', String(selectedSkin));
+    localStorage.setItem('etl_lava', lavaType);
+    localStorage.setItem('etl_difficulty', difficulty);
+    LSset('etl_achievements', achievements);
+    LSset('etl_tasks', tasks);
+    LSset('etl_settings', settings);
+    LSset('etl_upgrades', upgrades);
+    LSset('etl_modules', modules);
+    LSset('etl_bestRunsByDiff', bestRunsByDiff);
+    LSset('etl_stats', stats);
+  }
+  function updateSavedStars(){ savedStarsEl.textContent = `${savedStars} ⭐`; starsCountEl.textContent = `Stars: ${savedStars}`; }
+  function updateMenuSkinPreview(){ menuSkinPreview.textContent = skins[selectedSkin].emoji; }
+  function updateLavaPreview(){
+    if(lavaType==='red') lavaPreview.textContent = 'Red (Normal)';
+    if(lavaType==='blue') lavaPreview.textContent = 'Blue (Fast)';
+    if(lavaType==='purple') lavaPreview.textContent = 'Purple (Deadly)';
+  }
+  function updateDifficultyUI(){
+    difficultyLabel.textContent = difficulty[0].toUpperCase()+difficulty.slice(1);
+    [...difficultyWrap.querySelectorAll('.pill')].forEach(p=>{
+      p.classList.toggle('active', p.dataset.diff===difficulty);
+    });
+  }
+
+  // ===== Shop: skins + upgrades =====
+  function updateShopList(){
+    shopList.innerHTML='';
+    skins.forEach((s,i)=>{
+      const div=document.createElement('div'); div.className='skin-item';
+      if(ownedSkins.includes(i)) div.classList.add('owned');
+      if(selectedSkin===i) div.classList.add('selected');
+      div.innerHTML = `<div style="font-size:20px">${s.emoji}</div>
+      <div style="text-align:right">${s.price} ⭐<br><button class='smallBtn' data-idx='${i}'>${ownedSkins.includes(i)?'Select':'Buy'}</button></div>`;
+      div.querySelector('button').addEventListener('click',()=>{
+        if(ownedSkins.includes(i)){ selectedSkin=i; player.skin=i; menuSkinPreview.textContent = skins[selectedSkin].emoji; saveData(); updateShopList();}
+        else{
+          if(savedStars>=s.price){ savedStars-=s.price; ownedSkins.push(i); selectedSkin=i; player.skin=i; updateSavedStars(); saveData(); updateShopList(); alert('Purchased!'); }
+          else alert('Not enough stars');
+        }
+      });
+      shopList.appendChild(div);
+    });
+    updateUpgradesUI();
+    updateSavedStars();
+  }
+
+  const UPGRADE_DEF = [
+    {key:'extraHeart', name:'Extra Heart', max:2, baseCost:80, desc:'+1 life (max 2 levels)'},
+    {key:'jumpPlus', name:'Super Jump Duration', max:3, baseCost:40, desc:'+2s per level'},
+    {key:'slowPlus', name:'Slow Lava Duration', max:3, baseCost:40, desc:'+3s per level'},
+    {key:'magnet', name:'Star Magnet', max:2, baseCost:60, desc:'+80px range, 8s per level'}
+  ];
+  function upgradeCost(key){
+    const def = UPGRADE_DEF.find(u=>u.key===key); const lvl = upgrades[key]||0;
+    return def.baseCost + lvl* Math.ceil(def.baseCost*0.75);
+  }
+  function updateUpgradesUI(){
+    upgradesBox.querySelectorAll('.item').forEach(n=>n.remove());
+    UPGRADE_DEF.forEach(def=>{
+      const lvl = upgrades[def.key]||0;
+      const cost = upgradeCost(def.key);
+      const wrap = document.createElement('div'); wrap.className='item';
+      wrap.innerHTML = `<div><div style="font-weight:600">${def.name} (Lv.${lvl}/${def.max})</div><div style="color:#aaa;font-size:13px">${def.desc}</div></div>
+      <div><button class="smallBtn" ${lvl>=def.max?'disabled':''} data-upg="${def.key}">${lvl>=def.max?'Max':'Buy '+cost+'⭐'}</button></div>`;
+      wrap.querySelector('button').addEventListener('click',()=>{
+        const cur = upgrades[def.key]||0;
+        if(cur>=def.max) return;
+        const c = upgradeCost(def.key);
+        if(savedStars>=c){ savedStars-=c; upgrades[def.key]=cur+1; saveData(); updateUpgradesUI(); updateSavedStars(); beep(520,0.08,'sine',0.06); }
+        else alert('Not enough stars');
+      });
+      upgradesBox.appendChild(wrap);
+    });
+  }
+
+  // ===== Tasks (daily) =====
+  const TASK_POOL = [
+    {id:'collect15', text:'Collect 15 ⭐ in one run', check:r=>r.stars>=15, reward:8},
+    {id:'stage3', text:'Reach Stage 3', check:r=>r.stage>=3, reward:10},
+    {id:'nobump10s', text:'Avoid lava for 10s', check:r=>r.noLava10s, reward:6},
+    {id:'speed60', text:'Survive 60s', check:r=>r.time>=60, reward:7},
+    {id:'dash5', text:'Use Dash 5 times', check:r=>r.dash>=5, reward:5}
+  ];
+  function todayKey(){ const d=new Date(); const y=d.getFullYear(), m=('0'+(d.getMonth()+1)).slice(-2), day=('0'+d.getDate()).slice(-2); return `${y}${m}${day}`; }
+  function rollDailyTasks(){
+    const k='etl_dailyTasks_'+todayKey();
+    let d = LSget(k, null);
+    if(!d){
+      const pool = [...TASK_POOL].sort(()=>Math.random()-0.5).slice(0,3);
+      d = pool.map(t=>({...t, done:false}));
+      LSset(k,d);
+    }
+    return d;
+  }
+  function loadDailyTasksUI(){
+    tasksBox.innerHTML=''; const list = rollDailyTasks();
+    list.forEach(t=>{
+      const row=document.createElement('div');
+      row.style.margin='4px 0';
+      row.innerHTML = `<span>${t.done?'✅':'⬜️'} ${t.text}</span> <span style="float:right;color:#ffddaa">+${t.reward}⭐</span>`;
+      tasksBox.appendChild(row);
+    });
+  }
+  function completeTasksFromRun(run){
+    const k='etl_dailyTasks_'+todayKey();
+    let d = LSget(k,[]);
+    let gained=0; let changed=false;
+    d.forEach(t=>{ if(!t.done && TASK_POOL.find(x=>x.id===t.id).check(run)){ t.done=true; gained+=t.reward; changed=true; }});
+    if(changed){ LSset(k,d); if(gained>0){ savedStars+=gained; saveData(); toast(`Daily +${gained}⭐`); beep(660,0.12,'triangle',0.06); } }
+  }
+
+  // ===== Modules: leaderboard support (now per difficulty) =====
+  function refreshLeaderboard(){
+    if(!modules.leaderboard){ leaderboardEl.style.display='none'; return; }
+    leaderboardEl.style.display='block';
+    leaderboardEl.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Local Best Runs — <span style="text-transform:capitalize">${difficulty}</span> (Top 10)</div>`;
+    const list = (bestRunsByDiff[difficulty]||[]).slice(0,10);
+    if(!list.length){ leaderboardEl.innerHTML += '<div style="color:#aaa">No records yet.</div>'; return; }
+    list.forEach((r,i)=>{
+      const d = new Date(r.t||Date.now());
+      const row = document.createElement('div');
+      row.style.margin='4px 0';
+      row.innerHTML = `${i+1}. Stage ${r.stage} • ${r.time}s • ⭐${r.stars} <span style="float:right;color:#aaa">${d.toLocaleDateString()}</span>`;
+      leaderboardEl.appendChild(row);
+    });
+  }
+
+  // ===== Enemies =====
+  function spawnLavaFly(x,y){ enemies.push({type:'fly',x,y,width:26,height:18,vy:0,phase:Math.random()*Math.PI}); }
+  function spawnFireball(x){ enemies.push({type:'fire',x,y:lavaY-40,width:14,height:18,vy:- (2.5+Math.random()*2)}); }
+
+  // ===== RNG for Daily Run =====
+  function mulberry32(a){ return function(){ var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15, t|1); t^=t+Math.imul(t^t>>>7, t|61); return ((t^t>>>14)>>>0)/4294967296; } }
+  function dailySeedKey(){ return 'etl_dailySeed_'+todayKey(); }
+  function getDailySeed(){ let s = parseInt(localStorage.getItem(dailySeedKey())||'0',10); if(!s){ s = Math.floor(Math.random()*1e9); localStorage.setItem(dailySeedKey(), String(s)); } return s; }
+
+  // ===== Collisions & Physics =====
+  function rectsOverlap(a,b){ return a.x < b.x+b.width && a.x+a.width > b.x && a.y < b.y+b.height && a.y+a.height > b.y; }
+  function spawnParticles(x,y,color,count=12){ for(let i=0;i<count;i++){ particles.push({x,y,vx:(Math.random()-0.5)*3,vy:(Math.random()-1.5)*-2,life:1,color}); } }
+  function applyParticles(dt){ particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=dt; }); particles=particles.filter(p=>p.life>0); }
+
+  // ===== Powerups =====
+  function applyPowerup(type){
+    if(type==='double') activePowerups.doubleStars = 10;
+    if(type==='slow') activePowerups.slowLava = 10 + 3*(upgrades.slowPlus||0);
+    if(type==='jump') activePowerups.superJump = 5 + 2*(upgrades.jumpPlus||0);
+    if(type==='magnet') activePowerups.magnet = 8 * (1+(upgrades.magnet||0));
+    beep(760,0.08,'sawtooth',0.05);
+  }
+
+  // ===== Dash =====
+  let dashCountThisRun=0;
+  function tryDash(){
+    if(!running || paused) return;
+    if(dash.cooldown<=0 && dash.active<=0){
+      dash.active = 0.25;
+      dash.cooldown = 6;
+      dash.dir = (keys.left?-1:(keys.right?1:(Math.random()<.5?-1:1)));
+      dashCountThisRun++;
+      cameraShake(.6);
+      if(settings.haptics && 'vibrate' in navigator) navigator.vibrate(20);
+      beep(420,0.05,'square',0.06);
+    }
+  }
+  function updateDash(dt){
+    if(dash.cooldown>0) dash.cooldown = Math.max(0, dash.cooldown-dt);
+    if(dash.active>0){
+      const dashSpeed = 14;
+      player.x += dash.dir * dashSpeed;
+      dash.active = Math.max(0, dash.active-dt);
+      cameraShake(.2);
+    }
+    dashTxt.textContent = 'Dash: ' + (dash.cooldown<=0? 'Ready':''+Math.ceil(dash.cooldown)+'s');
+  }
+
+  // Wall slide / jump
+  function handleWall(){
+    const touchingLeft = (player.x<=0);
+    const touchingRight = (player.x+player.width>=worldWidth());
+    const onWall = (touchingLeft || touchingRight) && !player.onGround && player.vy>0;
+    if(onWall){
+      player.vy = Math.min(player.vy, 3.2);
+      if(keys.up){
+        player.vy = -14;
+        player.x += touchingLeft? 20 : -20;
+        beep(520,0.06,'sine',0.05);
+      }
+    }
+  }
+
+  // Dynamic lava phases
+  let lavaPhase={t:0,state:'calm'};
+  function updateLava(dt){
+    lavaPhase.t += dt;
+    if(lavaPhase.state==='calm' && lavaPhase.t>8){ lavaPhase.state='surge'; lavaPhase.t=0; }
+    else if(lavaPhase.state==='surge' && lavaPhase.t>4){ lavaPhase.state='cool'; lavaPhase.t=0; }
+    else if(lavaPhase.state==='cool' && lavaPhase.t>5){ lavaPhase.state='calm'; lavaPhase.t=0; }
+    let phaseMult = lavaPhase.state==='surge'? 1.8 : lavaPhase.state==='cool'? 0.6 : 1;
+    if(activePowerups.slowLava>0) phaseMult *= 0.3;
+    let typeSpeedMult = (lavaType==='blue')?1.6 : (lavaType==='purple')?2.4 : 1;
+
+    // difficulty base speeds
+    let base = 25;
+    if(difficulty==='easy') base = 18;
+    else if(difficulty==='hard') base = 32;
+
+    lavaY -= base * typeSpeedMult * phaseMult * dt;
+  }
+
+  // Camera shake
+  let shakeT=0;
+  function cameraShake(t){ shakeT = Math.max(shakeT, t); }
+  function applyShake(){
+    if(!settings.shake || shakeT<=0) return;
+    const s = shakeT*2; ctx.translate((Math.random()-0.5)*s, (Math.random()-0.5)*s);
+    shakeT = Math.max(0, shakeT - 0.016);
+  }
+
+  // Stage handling
+  function checkStage(){
+    const target = worldHeight - stage*stageHeight;
+    if(player.y < target){
+      stage++;
+      lavaMultiplier=1;
+      toast('Stage '+(stage-1)+' complete!',1500);
+
+      // spawn some helper platforms + stars regardless of difficulty,
+      // but keep them static in easy mode
+      for(let i=0;i<8;i++){
+        let w = 70+Math.random()*110; let x = Math.random()*(worldWidth()-w); let y = target - (i*120) - 100;
+        let type = (difficulty==='easy') ? 'static' : (Math.random()<0.15?'vanish': (stage>=4 && Math.random()<0.25?'elevator':'static'));
+        if(difficulty==='easy') type='static';
+        if(difficulty!=='easy' && type==='elevator'){
+          platforms.push({x,y,width:w,height:14,type, range:80+Math.random()*120,speed:0.6+Math.random()*0.9,originY:y,phase:Math.random()*Math.PI});
+        }else{
+          platforms.push({x,y,width:w,height:14,type});
+        }
+        if(Math.random()<0.18) stars.push({x:x+10+Math.random()*(w-20),y:y-26,width:20,height:20,collected:false});
+      }
+      if(modules.miniBoss && stage===4 && difficulty!=='easy'){ spawnMiniBossGate(); }
+    }
+  }
+
+  // Mini-boss (optional module)
+  let miniBossActive=false, miniBossTimer=0;
+  function spawnMiniBossGate(){
+    miniBossActive=true; miniBossTimer=30;
+    toast('Mini-Boss! Survive 30s', 2000);
+  }
+
+  function updateEnemies(dt){
+    if(difficulty==='easy') return; // completely off in easy
+    if(Math.random()< (miniBossActive? 0.05 : (difficulty==='hard'?0.03:0.02))){ spawnFireball(Math.random()*(worldWidth()-14)); }
+    enemies.forEach(e=>{
+      if(e.type==='fly'){
+        e.vy = Math.sin((performance.now()/1000)+e.phase)*0.8;
+        e.y += e.vy;
+        if(rectsOverlap(player,e)){ hitPlayer(); e.x += (player.x<e.x? 10 : -10); }
+      } else if(e.type==='fire'){
+        e.y += e.vy;
+        if(e.y < cameraY-80) e.off=true;
+        if(rectsOverlap(player,e)){ hitPlayer(); e.off=true; }
+      }
+    });
+    enemies = enemies.filter(e=>!e.off);
+    if(miniBossActive){
+      miniBossTimer -= dt;
+      if(miniBossTimer<=0){ miniBossActive=false; savedStars+=10; toast('+10⭐ Mini-Boss'); beep(820,0.12,'triangle',0.06); }
+    }
+  }
+
+  // Hit & death
+  function hitPlayer(){
+    if(player.iFrames>0) return;
+    player.lives -= 1; player.iFrames = 1.0;
+    spawnParticles(player.x+player.width/2, player.y+player.height/2,'red',22);
+    if(settings.haptics && 'vibrate' in navigator) navigator.vibrate(40);
+    beep(200,0.08,'square',0.06);
+    if(player.lives<=0){ endRun(false); }
+  }
+
+  // ===== UI Actions =====
+  startBtn.addEventListener('click', ()=>{ show(menu,false); startGame(); });
+  shopBtn.addEventListener('click', ()=>{ show(shop,true); show(menu,false); uiVisible(false); updateShopList(); tasksBox.style.display='none'; });
+  backBtn.addEventListener('click', ()=>{ show(shop,false); show(menu,true); });
+  resetDataBtn.addEventListener('click', resetAllData);
+  goMenuBtn.addEventListener('click', ()=>{ show(goPanel,false); show(menu,true); refreshLeaderboard(); });
+  goRestartBtn.addEventListener('click', ()=>{ show(goPanel,false); startGame(); });
+  dailyBtn.addEventListener('click', ()=>{ const v = tasksBox.style.display!=='block'; tasksBox.style.display = v?'block':'none'; if(v) loadDailyTasksUI(); });
+
+  // Lava selection
+  menu.querySelectorAll('button[data-lava]').forEach(b=>{ b.addEventListener('click',()=>{ lavaType=b.dataset.lava; updateLavaPreview(); saveData(); }); });
+
+  // Difficulty selection
+  difficultyWrap.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click', ()=>{
+      difficulty = p.dataset.diff;
+      updateDifficultyUI();
+      saveData();
+      refreshLeaderboard();
+    });
+  });
+
+  // Pause
+  function togglePause(){
+    if(!running) return;
+    paused = !paused;
+    if(paused){ cancelAnimationFrame(lastFrame); show(pausePanel,true); }
+    else { show(pausePanel,false); lastTS=0; requestAnimationFrame(gameLoop); }
+  }
+  resumeBtn.addEventListener('click', ()=>togglePause());
+  toMenuBtn.addEventListener('click', ()=>{ paused=false; running=false; show(pausePanel,false); show(menu,true); uiVisible(false); refreshLeaderboard(); });
+
+  // Settings bind
+  setSound.checked = !!settings.sound;
+  setShake.checked = !!settings.shake;
+  setHaptics.checked = !!settings.haptics;
+  setControls.value = settings.controls||'righty';
+  setSound.addEventListener('change', ()=>{ settings.sound=setSound.checked?1:0; saveData(); if(settings.sound) beep(600,0.06); });
+  setShake.addEventListener('change', ()=>{ settings.shake=setShake.checked?1:0; saveData(); });
+  setHaptics.addEventListener('change', ()=>{ settings.haptics=setHaptics.checked?1:0; saveData(); });
+  setControls.addEventListener('change', ()=>{
+    settings.controls=setControls.value; saveData();
+    const row=document.getElementById('ui-row');
+    row.innerHTML='';
+    if(settings.controls==='lefty'){
+      row.appendChild(upBtn); row.appendChild(leftBtn); row.appendChild(rightBtn);
+    }else{
+      row.appendChild(leftBtn); row.appendChild(upBtn); row.appendChild(rightBtn);
+    }
+  });
+
+  // Modules panel
+  modulesBtn.addEventListener('click', ()=>{ show(menu,false); show(modulesPanel,true); refreshLeaderboard(); });
+  modulesBackBtn.addEventListener('click', ()=>{ show(modulesPanel,false); show(menu,true); });
+  modDailyRun.checked = !!modules.dailyRun;
+  modLeaderboard.checked = !!modules.leaderboard;
+  modMiniBoss.checked = !!modules.miniBoss;
+  modDailyRun.addEventListener('change', ()=>{ modules.dailyRun = modDailyRun.checked?1:0; saveData(); });
+  modLeaderboard.addEventListener('change', ()=>{ modules.leaderboard = modLeaderboard.checked?1:0; saveData(); refreshLeaderboard(); });
+  modMiniBoss.addEventListener('change', ()=>{ modules.miniBoss = modMiniBoss.checked?1:0; saveData(); });
+
+  // Stats panel
+  statsBtn.addEventListener('click', ()=>{
+    statsList.innerHTML = '';
+    const rows = [
+      ['Total Runs', stats.totalRuns],
+      ['Total Time (s)', Math.floor(stats.totalTime)],
+      ['Total Stars', stats.totalStars],
+      ['Best Stage (Overall)', stats.bestStageOverall]
+    ];
+    rows.forEach(([k,v])=>{
+      const d=document.createElement('div'); d.textContent = `${k}: ${v}`; statsList.appendChild(d);
+    });
+    show(statsPanel,true);
+  });
+  statsCloseBtn.addEventListener('click', ()=> show(statsPanel,false));
+
+  // Tutorial
+  const tutSeen = localStorage.getItem('etl_tutorial')==='1';
+  tutorialOkBtn.addEventListener('click', ()=>{ localStorage.setItem('etl_tutorial','1'); show(tutorial,false); });
+
+  // ===== Platform Generation =====
+  function generateInitial(seed=null){
+    platforms=[]; stars=[]; powerups=[]; rocks=[]; enemies=[]; particles=[];
+    movingPlatforms=[]; vanishingPlatforms=[]; elevatorPlatforms=[]; springPlatforms=[]; spikePlatforms=[];
+    // ground
+    platforms.push({x:0,y:worldHeight-60,width:worldWidth(),height:60,type:'static'});
+    // themed bands
+    let y=worldHeight-150;
+    const R = seed!==null ? mulberry32(seed) : null;
+    function rnd(){ return R? R() : Math.random(); }
+
+    const easy = (difficulty==='easy');
+    while(y>0){
+      let w=70 + rnd()*110;
+      let x = rnd()*(worldWidth()-w);
+
+      if(easy){
+        // ONLY static platforms + occasional stars
+        platforms.push({x,y,width:w,height:14,type:'static'});
+        if(rnd()<0.18){ stars.push({x:x+10+rnd()*(w-20),y:y-26,width:20,height:20,collected:false});}
+      } else {
+        const band = Math.floor((worldHeight-y)/stageHeight)+1;
+        let r = rnd();
+        function addStatic(){ platforms.push({x,y,width:w,height:14,type:'static'}); }
+        function addMoving(){ platforms.push({x,y,width:w,height:14,type:'moving',dir:rnd()<.5?1:-1,range:40+rnd()*80,speed:0.6+rnd()*0.9,originX:x}); }
+        function addVanish(){ platforms.push({x,y,width:w,height:14,type:'vanish',timer:0}); }
+        function addElevator(){ platforms.push({x,y,width:w,height:14,type:'elevator',range:60+rnd()*110,speed:0.6+rnd()*0.9,originY:y,phase:rnd()*Math.PI}); }
+        if(band===1){ if(r<0.10) addMoving(); else if(r<0.16) addVanish(); else addStatic(); }
+        else if(band===2){ if(r<0.20) addMoving(); else if(r<0.18) addVanish(); else addStatic(); }
+        else if(band===3){ if(r<0.12) addMoving(); else if(r<0.30) addVanish(); else addStatic(); }
+        else{ if(r<0.18) addMoving(); else if(r<0.22) addVanish(); else if(r<0.28) addElevator(); else addStatic(); }
+
+        if(rnd()<0.08){ springPlatforms.push({x:x+w*0.4,y:y-10,width:30,height:8,type:'spring'});}
+        if(rnd()<0.06){ spikePlatforms.push({x:x+rnd()*(w-20),y:y-14,width:20,height:10,type:'spike'});}
+        if(rnd()<0.15){ stars.push({x:x+10+rnd()*(w-20),y:y-26,width:20,height:20,collected:false});}
+        if(rnd()<0.08){ powerups.push({x:x+10+rnd()*(w-30),y:y-36,type:['double','slow','jump','magnet'][Math.floor(rnd()*4)],collected:false});}
+        if(rnd()<0.05){ spawnLavaFly(x+w*0.5, y-30); }
+      }
+
+      y -= 80 + rnd()*80;
+    }
+
+    movingPlatforms = platforms.filter(p=>p.type==='moving');
+    vanishingPlatforms = platforms.filter(p=>p.type==='vanish');
+    elevatorPlatforms = platforms.filter(p=>p.type==='elevator');
+
+    // reset player
+    player.width=44; player.height=44;
+    player.x = W/2 - player.width/2; player.y = worldHeight-140; player.vy=0; player.onGround=false;
+    const baseLives = 3 + (upgrades.extraHeart||0);
+    player.lives = baseLives; player.skin = selectedSkin; player.iFrames=0;
+    cameraY = player.y - H/2;
+    lavaY = worldHeight + 100;
+    stage = 1; elapsed=0; totalCollectedThisRun=0; noLavaTimer=0;
+    dash = {cooldown:0, active:0, dir:0};
+    diffTxt.textContent = `Mode: ${difficulty[0].toUpperCase()+difficulty.slice(1)}`;
+  }
+
+  // ===== Rocks spawn (disabled in easy) =====
+  function maybeSpawnRocks(){
+    if(difficulty==='easy') return;
+    const extra = (difficulty==='hard')?0.01:0;
+    if(Math.random()<0.02 + stage*0.005 + extra){
+      const rx = Math.random()*(worldWidth()-24);
+      rocks.push({x:rx,y:cameraY-40 - Math.random()*200 - 60,width:24,height:24,vy:2+Math.random()*3});
+    }
+  }
+
+  // ===== Game Loop =====
+  function gameLoop(ts=0){
+    if(!running || paused) return;
+    if(!lastTS) lastTS=ts;
+    const dt = Math.min(0.033, (ts-lastTS)/1000);
+    lastTS=ts;
+    elapsed += dt;
+    if(player.iFrames>0) player.iFrames = Math.max(0, player.iFrames-dt);
+
+    // powerup timers
+    Object.keys(activePowerups).forEach(k=>{ if(activePowerups[k]>0) activePowerups[k] = Math.max(0, activePowerups[k]-dt); });
+
+    // input move
+    if(keys.left) player.x -= player.speed;
+    if(keys.right) player.x += player.speed;
+    player.x = clamp(player.x,0,worldWidth()-player.width);
+    if(keys.up && player.onGround){ player.vy = (activePowerups.superJump>0)? player.jumpPower*1.6 : player.jumpPower; player.onGround=false; beep(520,0.05,'sine',0.05); }
+
+    // gravity
+    player.vy += player.gravity; player.y += player.vy;
+
+    // moving / elevator platforms (off in easy by generation)
+    movingPlatforms.forEach(p=>{ p.originX = p.originX || p.x; p.x = p.originX + Math.sin((performance.now()/1000)*p.speed)*p.range; });
+    elevatorPlatforms.forEach(p=>{ p.y = p.originY + Math.sin((performance.now()/1000)+p.phase)*p.range; });
+
+    // vanish platforms
+    if(difficulty!=='easy'){
+      vanishingPlatforms.forEach(p=>{ if(p.timer>0){ p.timer -= dt; if(p.timer<=0){ spawnParticles(p.x+p.width/2, p.y, 'orange', 20); platforms = platforms.filter(pp=>pp!==p); vanishingPlatforms = vanishingPlatforms.filter(pp=>pp!==p); } } });
+    }
+
+    // platform collide
+    player.onGround=false;
+    for(let p of platforms){
+      if(player.x + player.width > p.x && player.x < p.x + p.width && player.y + player.height > p.y && player.y + player.height < p.y + p.height + 12 && player.vy >=0){
+        player.y = p.y - player.height; player.vy = 0; player.onGround = true;
+        if(p.type==='vanish' && p.timer<=0) p.timer = 2;
+      }
+    }
+
+    // springs (none in easy)
+    if(difficulty!=='easy'){
+      springPlatforms.forEach(sp=>{
+        if(player.x+player.width>sp.x && player.x<sp.x+sp.width && player.y+player.height>sp.y && player.y+player.height<sp.y+sp.height+12 && player.vy>=0){
+          player.y = sp.y - player.height; player.vy = (activePowerups.superJump>0? -22 : -18); cameraShake(.2); beep(700,0.05,'triangle',0.05);
+        }
+      });
+    }
+
+    // spikes (none in easy)
+    if(difficulty!=='easy'){
+      spikePlatforms.forEach(sk=>{ if(rectsOverlap(player, sk)){ hitPlayer(); } });
+    }
+
+    // collect stars (magnet still works if any powerup active; in easy there are no powerups)
+    stars.forEach(s=>{
+      if(s.collected) return;
+      if(activePowerups.magnet>0){
+        const cx = s.x - (player.x+player.width/2);
+        const cy = (s.y) - (player.y+player.height/2);
+        const d = Math.hypot(cx,cy);
+        if(d< (80*(1+(upgrades.magnet||0)))){ s.x -= cx*0.08; s.y -= cy*0.08; }
+      }
+      if(player.x < s.x + s.width && player.x + player.width > s.x && player.y < s.y + s.height && player.y + player.height > s.y){
+        s.collected=true; const gained = (activePowerups.doubleStars>0)?2:1; totalCollectedThisRun += gained; savedStars += gained; spawnParticles(s.x+8,s.y,'gold',18); updateSavedStars(); beep(880,0.03,'sine',0.05);
+      }
+    });
+
+    // collect powerups (none in easy because they are not generated)
+    if(difficulty!=='easy'){
+      powerups.forEach(pu=>{
+        if(!pu.collected && rectsOverlap(player,{x:pu.x,y:pu.y,width:20,height:20})){ pu.collected=true; applyPowerup(pu.type); spawnParticles(pu.x,pu.y,'white',16); }
+      });
+    }
+
+    // enemies
+    updateEnemies(dt);
+
+    // rocks
+    maybeSpawnRocks();
+    rocks.forEach(r=>{
+      r.y += r.vy; if(r.y > cameraY + H + 80) r.off=true;
+      if(rectsOverlap(player,r)){ r.off=true; hitPlayer(); }
+    });
+    rocks = rocks.filter(r=>!r.off);
+
+    // wall + dash
+    handleWall();
+    updateDash(dt);
+
+    // camera
+    cameraY = clamp(player.y - H/2, 0, worldHeight - H);
+
+    // lava
+    updateLava(dt);
+
+    // lava contact
+    if(player.y + player.height > lavaY){
+      if(lavaType==='purple'){ endRun(false); }
+      else{
+        if(player.iFrames<=0){ hitPlayer(); player.y = Math.min(player.y - 120, worldHeight-200); }
+      }
+      noLavaTimer=0;
+    } else {
+      noLavaTimer = Math.min(10, noLavaTimer+dt);
+    }
+
+    // off world
+    if(player.y > worldHeight + 200){ hitPlayer(); player.y = worldHeight - 200; player.vy=0; }
+
+    // stage
+    checkStage();
+
+    // particles
+    applyParticles(dt);
+
+    // UI
+    timeTxt.textContent = `Time: ${Math.floor(elapsed)}s`;
+    starsTxt.textContent = `Stars: ${totalCollectedThisRun}`;
+    livesTxt.textContent = 'Lives: ' + '❤️'.repeat(Math.max(0,player.lives));
+
+    // render
+    render();
+
+    lastFrame = requestAnimationFrame(gameLoop);
+  }
+
+  // ===== Render =====
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    const g1 = ctx.createLinearGradient(0,0,0,H);
+    g1.addColorStop(0, '#001022'); g1.addColorStop(0.6, '#330000'); g1.addColorStop(1, '#110000');
+    ctx.fillStyle = g1; ctx.fillRect(0,0,W,H);
+    for(let i=0;i<6;i++){ ctx.globalAlpha=0.03; ctx.fillStyle='#fff'; ctx.fillRect((i*73)%W, (i*91 + cameraY*0.02)%H, 2,2); } ctx.globalAlpha=1;
+
+    ctx.save(); applyShake();
+
+    ctx.fillStyle='#8b8f96';
+    for(let p of platforms){
+      if(p.type==='elevator'){ ctx.fillStyle='#9aa3ad'; } else ctx.fillStyle='#8b8f96';
+      ctx.fillRect(p.x, p.y - cameraY, p.width, p.height);
+      if(p.type==='vanish'){ ctx.fillStyle='rgba(255,200,80,.6)'; ctx.fillRect(p.x,p.y-cameraY,p.width,2); }
+    }
+
+    if(difficulty!=='easy'){
+      ctx.fillStyle='#55dd77'; springPlatforms.forEach(sp=>{ ctx.fillRect(sp.x, sp.y-cameraY, sp.width, sp.height); });
+      ctx.fillStyle='#dd5555'; spikePlatforms.forEach(sk=>{ ctx.fillRect(sk.x, sk.y-cameraY, sk.width, sk.height); });
+    }
+
+    powerups.forEach(p=>{ if(!p.collected){ ctx.font='20px serif'; if(p.type==='double') ctx.fillText('⭐x2', p.x, p.y - cameraY); if(p.type==='slow') ctx.fillText('🐢', p.x, p.y - cameraY); if(p.type==='jump') ctx.fillText('⬆️', p.x, p.y - cameraY); if(p.type==='magnet') ctx.fillText('🧲', p.x, p.y - cameraY);} });
+
+    ctx.font='22px serif'; stars.forEach(s=>{ if(!s.collected) ctx.fillText('⭐', s.x, s.y - cameraY); });
+
+    enemies.forEach(e=>{
+      if(e.type==='fly'){ ctx.font='18px serif'; ctx.fillText('🪰', e.x, e.y - cameraY); }
+      else if(e.type==='fire'){ ctx.font='18px serif'; ctx.fillText('🔥', e.x, e.y - cameraY); }
+    });
+
+    ctx.font = `${player.height}px serif`;
+    ctx.globalAlpha = player.iFrames>0? 0.6 : 1;
+    ctx.fillText(skins[player.skin].emoji, player.x, player.y - cameraY);
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle='saddlebrown'; rocks.forEach(r=>{ ctx.fillRect(r.x, r.y - cameraY, r.width, r.height); });
+
+    if(lavaType==='red') ctx.fillStyle = 'orangered';
+    if(lavaType==='blue') ctx.fillStyle = '#ff7f50';
+    if(lavaType==='purple') ctx.fillStyle = '#b347ff';
+    ctx.fillRect(0, lavaY - cameraY, W, H - (lavaY - cameraY));
+
+    particles.forEach(p=>{ ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y - cameraY, 3,3); });
+    ctx.globalAlpha=1;
+
+    ctx.restore();
+
+    // powerup UI
+    powerupsEl.innerHTML = '';
+    if(activePowerups.doubleStars>0){ addPU(`2x Stars: ${Math.ceil(activePowerups.doubleStars)}s`); }
+    if(activePowerups.slowLava>0){ addPU(`Slow Lava: ${Math.ceil(activePowerups.slowLava)}s`); }
+    if(activePowerups.superJump>0){ addPU(`Super Jump: ${Math.ceil(activePowerups.superJump)}s`); }
+    if(activePowerups.magnet>0){ addPU(`Magnet: ${Math.ceil(activePowerups.magnet)}s`); }
+    function addPU(txt){ const div=document.createElement('div'); div.className='power-pill'; div.textContent=txt; powerupsEl.appendChild(div); }
+  }
+
+  // ===== End Run & Best Runs =====
+  function saveBestRun(statsObj){
+    if(!modules.leaderboard) return;
+    bestRunsByDiff[difficulty] = bestRunsByDiff[difficulty] || [];
+    bestRunsByDiff[difficulty].push({t:Date.now(), ...statsObj});
+    bestRunsByDiff[difficulty].sort((a,b)=> (b.stage-a.stage) || (b.time-a.time) || (b.stars-a.stars));
+    bestRunsByDiff[difficulty] = bestRunsByDiff[difficulty].slice(0,10);
+    saveData();
+  }
+
+  function endRun(success){
+    running=false; gameOver=true; cancelAnimationFrame(lastFrame);
+    saveData();
+    const statsHtml = `<div>Stars this run: ${totalCollectedThisRun}</div><div>Stage reached: ${stage}</div><div>Time: ${Math.floor(elapsed)}s</div>`;
+    goStats.innerHTML = statsHtml;
+    document.getElementById('goTitle').textContent = success? 'You Win!' : 'Game Over!';
+    show(goPanel,true); uiVisible(false);
+
+    // update dailies
+    completeTasksFromRun({time:Math.floor(elapsed), stage, stars:totalCollectedThisRun, noLava10s: (noLavaTimer>=10), dash:dashCountThisRun});
+    // save per-diff best run
+    saveBestRun({time:Math.floor(elapsed), stage, stars:totalCollectedThisRun});
+
+    // stats
+    stats.totalRuns += 1;
+    stats.totalTime += elapsed;
+    stats.totalStars += totalCollectedThisRun;
+    stats.bestStageOverall = Math.max(stats.bestStageOverall, stage);
+    saveData();
+  }
+
+  // ===== Start / Reset =====
+  function resetAllData(){
+    if(!confirm('Reset all saved data?')) return;
+    const keepVersion = localStorage.getItem('etl_v')||'3';
+    localStorage.clear();
+    localStorage.setItem('etl_v', keepVersion);
+    ownedSkins=[0]; savedStars=0; selectedSkin=0; achievements={}; tasks={};
+    settings={sound:1,shake:1,haptics:1,controls:'righty'};
+    upgrades={extraHeart:0, jumpPlus:0, slowPlus:0, magnet:0};
+    modules={dailyRun:0, leaderboard:0, miniBoss:0};
+    bestRunsByDiff={easy:[],normal:[],hard:[]};
+    lavaType='red'; difficulty='normal';
+    stats={totalRuns:0,totalTime:0,totalStars:0,bestStageOverall:1};
+    updateSavedStars(); updateShopList(); updateMenuSkinPreview(); updateLavaPreview(); updateDifficultyUI();
+    saveData(); alert('Data reset.');
+    refreshLeaderboard();
+  }
+
+  function startGame(){
+    show(goPanel,false); show(shop,false); show(menu,false); show(pausePanel,false); show(modulesPanel,false); show(statsPanel,false);
+    const seed = (modules.dailyRun? getDailySeed() : null);
+    generateInitial(seed);
+    updateSavedStars(); updateShopList(); updateMenuSkinPreview(); updateLavaPreview(); updateDifficultyUI();
+    const tutSeen = localStorage.getItem('etl_tutorial')==='1';
+    if(!tutSeen){ show(tutorial,true); } else { show(tutorial,false); }
+    running=true; gameOver=false; lastTS=0; requestAnimationFrame(gameLoop); uiVisible(true);
+  }
+
+  // Initial UI
+  show(menu,true);
+  updateSavedStars(); updateShopList(); updateMenuSkinPreview(); updateLavaPreview(); updateDifficultyUI();
+  refreshLeaderboard();
+
+})();
+</script>
+</body>
+</html>
